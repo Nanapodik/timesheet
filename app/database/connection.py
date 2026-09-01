@@ -1,8 +1,19 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
-DATABASE_URL = "postgresql+psycopg://postgres:Timesheet_2026_Strong!@localhost:5432/timesheet"
+load_dotenv()
+
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is not set"
+    )
 
 
 class Base(DeclarativeBase):
@@ -15,6 +26,5 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind=engine
+    bind=engine,
 )
-

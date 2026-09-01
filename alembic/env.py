@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from app.database.connection import Base, engine
 from app.models.employee import Employee
 from app.models.organization import Organization
+from app.models.timesheet import TimesheetPlan
 
 
 config = context.config
