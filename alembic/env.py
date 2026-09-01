@@ -7,6 +7,7 @@ from app.database.connection import Base, engine
 from app.models.employee import Employee
 from app.models.organization import Organization
 from app.models.timesheet import TimesheetPlan
+from app.models.timesheet_fact import TimesheetFact
 
 
 config = context.config

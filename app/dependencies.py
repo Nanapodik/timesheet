@@ -5,17 +5,15 @@ from app.database.connection import SessionLocal
 from app.repositories.employee import EmployeeRepository
 from app.repositories.organization import OrganizationRepository
 from app.repositories.timesheet import TimesheetPlanRepository
+from app.repositories.timesheet_fact import TimesheetFactRepository
 
 from app.services.employee import EmployeeService
 from app.services.organization import OrganizationService
 from app.services.timesheet import TimesheetPlanService
+from app.services.timesheet_fact import TimesheetFactService
 
 
-def get_organization_service() -> Generator[
-    OrganizationService,
-    None,
-    None,
-]:
+def get_organization_service() -> Generator[OrganizationService, None, None]:
     session = SessionLocal()
 
     try:
@@ -26,11 +24,7 @@ def get_organization_service() -> Generator[
         session.close()
 
 
-def get_employee_service() -> Generator[
-    EmployeeService,
-    None,
-    None,
-]:
+def get_employee_service() -> Generator[EmployeeService, None, None]:
     session = SessionLocal()
 
     try:
@@ -44,11 +38,7 @@ def get_employee_service() -> Generator[
         session.close()
 
 
-def get_timesheet_service() -> Generator[
-    TimesheetPlanService,
-    None,
-    None,
-]:
+def get_timesheet_service() -> Generator[TimesheetPlanService, None, None]:
     session = SessionLocal()
 
     try:
@@ -60,6 +50,35 @@ def get_timesheet_service() -> Generator[
                     OrganizationRepository(session)
                 ),
             ),
+        )
+    finally:
+        session.close()
+
+
+def get_timesheet_plan_service() -> Generator[TimesheetPlanService, None, None]:
+    session = SessionLocal()
+
+    try:
+        yield TimesheetPlanService(
+            TimesheetPlanRepository(session),
+            EmployeeService(
+                EmployeeRepository(session),
+                OrganizationService(
+                    OrganizationRepository(session)
+                ),
+            ),
+        )
+    finally:
+        session.close()
+
+
+def get_timesheet_fact_service() -> Generator[TimesheetFactService, None, None]:
+    session = SessionLocal()
+
+    try:
+        yield TimesheetFactService(
+            TimesheetFactRepository(session),
+            TimesheetPlanRepository(session),
         )
     finally:
         session.close()
