@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, Float, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, Date, Float, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.connection import Base
@@ -8,13 +8,15 @@ from app.database.connection import Base
 
 class TimesheetPlan(Base):
     __tablename__ = "timesheet_plans"
+
     __table_args__ = (
-    UniqueConstraint(
-        "employee_id",
-        "work_date",
-        name="uq_timesheet_plan_employee_date",
-    ),
-)
+        UniqueConstraint(
+            "employee_id",
+            "work_date",
+            name="uq_timesheet_plan_employee_date",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
 
     employee_id: Mapped[int] = mapped_column(
@@ -30,4 +32,10 @@ class TimesheetPlan(Base):
     planned_hours: Mapped[float] = mapped_column(
         Float,
         nullable=False,
+    )
+
+    is_fixed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
     )

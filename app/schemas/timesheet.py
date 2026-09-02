@@ -21,3 +21,4 @@ class TimesheetPlanResponse(BaseModel):
     employee_id: int
     work_date: date
     planned_hours: float
+    is_fixed: bool
