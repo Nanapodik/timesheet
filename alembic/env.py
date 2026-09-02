@@ -8,6 +8,7 @@ from app.models.employee import Employee
 from app.models.organization import Organization
 from app.models.timesheet import TimesheetPlan
 from app.models.timesheet_fact import TimesheetFact
+from app.models.user import User
 
 
 config = context.config
