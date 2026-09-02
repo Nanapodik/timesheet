@@ -8,17 +8,54 @@ from app.repositories.timesheet_fact import TimesheetFactRepository
 class TimesheetFactNotFoundError(Exception):
     """Timesheet fact was not found."""
 
+    def __init__(self, timesheet_fact_id: int) -> None:
+        super().__init__(
+            f"Timesheet fact with id={timesheet_fact_id} not found"
+        )
+
 
 class TimesheetFactAlreadyExistsError(Exception):
     """Timesheet fact already exists for employee and date."""
+
+    def __init__(
+        self,
+        employee_id: int,
+        work_date: date,
+    ) -> None:
+        super().__init__(
+            f"Timesheet fact for employee {employee_id} "
+            f"on {work_date} already exists"
+        )
 
 
 class TimesheetFactFutureDateError(Exception):
     """Cannot create or update fact for a future date."""
 
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
 
 class TimesheetFactHoursMismatchError(Exception):
     """Actual hours do not match planned hours."""
+
+    def __init__(self, planned_hours: float) -> None:
+        super().__init__(
+            f"Actual hours must equal planned hours: {planned_hours}"
+        )
+
+
+class TimesheetPlanNotFoundForFactError(Exception):
+    """Timesheet plan was not found for employee and date."""
+
+    def __init__(
+        self,
+        employee_id: int,
+        work_date: date,
+    ) -> None:
+        super().__init__(
+            f"Timesheet plan for employee {employee_id} "
+            f"on {work_date} not found"
+        )
 
 
 class TimesheetFactService:
@@ -43,7 +80,9 @@ class TimesheetFactService:
             )
 
         # Проверяем, существует ли план на эту дату.
-        plans = self._timesheet_plan_repository.get_by_employee_id(employee_id)
+        plans = self._timesheet_plan_repository.get_by_employee_id(
+            employee_id
+        )
 
         planned_hours = None
 
@@ -53,25 +92,29 @@ class TimesheetFactService:
                 break
 
         if planned_hours is None:
-            raise ValueError(
-                "Timesheet plan not found for employee and date"
+            raise TimesheetPlanNotFoundForFactError(
+                employee_id=employee_id,
+                work_date=work_date,
             )
 
         # Факт должен соответствовать плану.
         if actual_hours != planned_hours:
             raise TimesheetFactHoursMismatchError(
-                f"Actual hours must equal planned hours: {planned_hours}"
+                planned_hours
             )
 
         # Проверяем, нет ли уже факта.
         existing_facts = (
-            self._timesheet_fact_repository.get_by_employee_id(employee_id)
+            self._timesheet_fact_repository.get_by_employee_id(
+                employee_id
+            )
         )
 
         for fact in existing_facts:
             if fact.work_date == work_date:
                 raise TimesheetFactAlreadyExistsError(
-                    "Timesheet fact already exists for employee and date"
+                    employee_id=employee_id,
+                    work_date=work_date,
                 )
 
         timesheet_fact = TimesheetFact(
@@ -80,16 +123,21 @@ class TimesheetFactService:
             actual_hours=actual_hours,
         )
 
-        return self._timesheet_fact_repository.create(timesheet_fact)
+        return self._timesheet_fact_repository.create(
+            timesheet_fact
+        )
 
-    def get_by_id(self, timesheet_fact_id: int) -> TimesheetFact:
+    def get_by_id(
+        self,
+        timesheet_fact_id: int,
+    ) -> TimesheetFact:
         timesheet_fact = self._timesheet_fact_repository.get_by_id(
             timesheet_fact_id
         )
 
         if timesheet_fact is None:
             raise TimesheetFactNotFoundError(
-                f"Timesheet fact with id {timesheet_fact_id} not found"
+                timesheet_fact_id
             )
 
         return timesheet_fact
@@ -110,7 +158,9 @@ class TimesheetFactService:
         timesheet_fact_id: int,
         actual_hours: float,
     ) -> TimesheetFact:
-        timesheet_fact = self.get_by_id(timesheet_fact_id)
+        timesheet_fact = self.get_by_id(
+            timesheet_fact_id
+        )
 
         # Нельзя менять факт на будущую дату.
         if timesheet_fact.work_date > date.today():
@@ -131,21 +181,31 @@ class TimesheetFactService:
                 break
 
         if planned_hours is None:
-            raise ValueError(
-                "Timesheet plan not found for employee and date"
+            raise TimesheetPlanNotFoundForFactError(
+                employee_id=timesheet_fact.employee_id,
+                work_date=timesheet_fact.work_date,
             )
 
         # Проверяем соответствие факта плану.
         if actual_hours != planned_hours:
             raise TimesheetFactHoursMismatchError(
-                f"Actual hours must equal planned hours: {planned_hours}"
+                planned_hours
             )
 
         timesheet_fact.actual_hours = actual_hours
 
-        return self._timesheet_fact_repository.update(timesheet_fact)
+        return self._timesheet_fact_repository.update(
+            timesheet_fact
+        )
 
-    def delete(self, timesheet_fact_id: int) -> None:
-        timesheet_fact = self.get_by_id(timesheet_fact_id)
+    def delete(
+        self,
+        timesheet_fact_id: int,
+    ) -> None:
+        timesheet_fact = self.get_by_id(
+            timesheet_fact_id
+        )
 
-        self._timesheet_fact_repository.delete(timesheet_fact)
+        self._timesheet_fact_repository.delete(
+            timesheet_fact
+        )

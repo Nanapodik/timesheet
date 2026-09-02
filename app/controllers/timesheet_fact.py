@@ -12,6 +12,7 @@ from app.services.timesheet_fact import (
     TimesheetFactHoursMismatchError,
     TimesheetFactNotFoundError,
     TimesheetFactService,
+    TimesheetPlanNotFoundForFactError,
 )
 
 
@@ -57,7 +58,7 @@ def create_timesheet_fact(
             detail=str(exc),
         ) from exc
 
-    except ValueError as exc:
+    except TimesheetPlanNotFoundForFactError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
@@ -144,7 +145,7 @@ def update_timesheet_fact(
             detail=str(exc),
         ) from exc
 
-    except ValueError as exc:
+    except TimesheetPlanNotFoundForFactError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(exc),
