@@ -164,6 +164,25 @@ class TimesheetPlanRepository:
         return timesheet_plan
 
     # ========================================================
+    # FIX MONTH
+    # ========================================================
+
+    def fix_month(
+        self,
+        plans: list[TimesheetPlan],
+    ) -> list[TimesheetPlan]:
+
+        for plan in plans:
+            plan.is_fixed = True
+
+        self._session.commit()
+
+        for plan in plans:
+            self._session.refresh(plan)
+
+        return plans
+
+    # ========================================================
     # DELETE
     # ========================================================
 

@@ -7,6 +7,10 @@ from app.schemas.timesheet_report import (
     TimesheetReportDay,
     TimesheetReportResponse,
 )
+from app.services.employee import (
+    EmployeeNotFoundError,
+    EmployeeService,
+)
 
 
 class TimesheetReportService:
@@ -15,6 +19,7 @@ class TimesheetReportService:
         self,
         timesheet_plan_repository: TimesheetPlanRepository,
         timesheet_fact_repository: TimesheetFactRepository,
+        employee_service: EmployeeService,
     ) -> None:
 
         self._timesheet_plan_repository = (
@@ -25,6 +30,8 @@ class TimesheetReportService:
             timesheet_fact_repository
         )
 
+        self._employee_service = employee_service
+
     def get_month_report(
         self,
         employee_id: int,
@@ -32,22 +39,37 @@ class TimesheetReportService:
         month: int,
     ) -> TimesheetReportResponse:
 
-        # Определяем первый и последний день месяца.
+        # Проверяем существование сотрудника.
+        employee = self._employee_service.get_by_id(
+            employee_id
+        )
+
+        if employee is None:
+            raise EmployeeNotFoundError(
+                employee_id
+            )
+
+        # Проверяем корректность месяца.
+        if month < 1 or month > 12:
+            raise ValueError(
+                "Month must be between 1 and 12"
+            )
+
+        # Определяем первый день месяца.
         first_day = date(
             year,
             month,
             1,
         )
 
-        last_day_number = monthrange(
-            year,
-            month,
-        )[1]
-
+        # Определяем последний день месяца.
         last_day = date(
             year,
             month,
-            last_day_number,
+            monthrange(
+                year,
+                month,
+            )[1],
         )
 
         # Получаем планы сотрудника за месяц.

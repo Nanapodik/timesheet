@@ -129,7 +129,7 @@ def test_create_timesheet_fact_hours_mismatch(
 
     assert response.json() == {
         "detail": (
-            "Actual hours must equal planned hours: 7"
+            "Actual hours cannot exceed planned hours: 7"
         )
     }
 
@@ -332,7 +332,7 @@ def test_update_timesheet_fact_hours_mismatch(
     response = client_with_timesheet_fact_service.put(
         "/timesheet-facts/1",
         json={
-            "actual_hours": 7,
+            "actual_hours": 9,
         },
     )
 
@@ -340,7 +340,7 @@ def test_update_timesheet_fact_hours_mismatch(
 
     assert response.json() == {
         "detail": (
-            "Actual hours must equal planned hours: 8"
+            "Actual hours cannot exceed planned hours: 8"
         )
     }
 

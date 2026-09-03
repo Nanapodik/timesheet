@@ -131,10 +131,19 @@ def get_timesheet_report_service() -> Generator[
     session = SessionLocal()
 
     try:
+        employee_service = EmployeeService(
+            EmployeeRepository(session),
+            OrganizationService(
+                OrganizationRepository(session)
+            ),
+        )
+
         yield TimesheetReportService(
             TimesheetPlanRepository(session),
             TimesheetFactRepository(session),
+            employee_service,
         )
+
     finally:
         session.close()
 

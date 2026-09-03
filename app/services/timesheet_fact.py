@@ -8,7 +8,10 @@ from app.repositories.timesheet_fact import TimesheetFactRepository
 class TimesheetFactNotFoundError(Exception):
     """Timesheet fact was not found."""
 
-    def __init__(self, timesheet_fact_id: int) -> None:
+    def __init__(
+        self,
+        timesheet_fact_id: int,
+    ) -> None:
         super().__init__(
             f"Timesheet fact with id={timesheet_fact_id} not found"
         )
@@ -31,16 +34,22 @@ class TimesheetFactAlreadyExistsError(Exception):
 class TimesheetFactFutureDateError(Exception):
     """Cannot create or update fact for a future date."""
 
-    def __init__(self, message: str) -> None:
+    def __init__(
+        self,
+        message: str,
+    ) -> None:
         super().__init__(message)
 
 
 class TimesheetFactHoursMismatchError(Exception):
-    """Actual hours do not match planned hours."""
+    """Actual hours cannot exceed planned hours."""
 
-    def __init__(self, planned_hours: float) -> None:
+    def __init__(
+        self,
+        planned_hours: float,
+    ) -> None:
         super().__init__(
-            f"Actual hours must equal planned hours: {planned_hours}"
+            f"Actual hours cannot exceed planned hours: {planned_hours}"
         )
 
 
@@ -59,13 +68,23 @@ class TimesheetPlanNotFoundForFactError(Exception):
 
 
 class TimesheetFactService:
+
     def __init__(
         self,
         timesheet_fact_repository: TimesheetFactRepository,
         timesheet_plan_repository: TimesheetPlanRepository,
     ) -> None:
-        self._timesheet_fact_repository = timesheet_fact_repository
-        self._timesheet_plan_repository = timesheet_plan_repository
+        self._timesheet_fact_repository = (
+            timesheet_fact_repository
+        )
+
+        self._timesheet_plan_repository = (
+            timesheet_plan_repository
+        )
+
+    # ========================================================
+    # CREATE
+    # ========================================================
 
     def create(
         self,
@@ -73,50 +92,56 @@ class TimesheetFactService:
         work_date: date,
         actual_hours: float,
     ) -> TimesheetFact:
-        # Нельзя вносить факт за будущую дату.
+
+        # Нельзя вводить факт за будущую дату.
         if work_date > date.today():
             raise TimesheetFactFutureDateError(
                 "Cannot enter actual hours for a future date"
             )
 
-        # Проверяем, существует ли план на эту дату.
-        plans = self._timesheet_plan_repository.get_by_employee_id(
-            employee_id
+        # Получаем план сотрудника на указанную дату.
+        plan = (
+            self._timesheet_plan_repository
+            .get_by_employee_and_date(
+                employee_id=employee_id,
+                work_date=work_date,
+            )
         )
 
-        planned_hours = None
-
-        for plan in plans:
-            if plan.work_date == work_date:
-                planned_hours = plan.planned_hours
-                break
-
-        if planned_hours is None:
+        # Без плана нельзя создать факт.
+        if plan is None:
             raise TimesheetPlanNotFoundForFactError(
                 employee_id=employee_id,
                 work_date=work_date,
             )
 
-        # Факт должен соответствовать плану.
-        if actual_hours != planned_hours:
+        # Бизнес-правило:
+        # 0 <= actual_hours <= planned_hours
+        if (
+            actual_hours < 0
+            or actual_hours > plan.planned_hours
+        ):
             raise TimesheetFactHoursMismatchError(
-                planned_hours
+                plan.planned_hours
             )
 
-        # Проверяем, нет ли уже факта.
-        existing_facts = (
-            self._timesheet_fact_repository.get_by_employee_id(
-                employee_id
+        # Проверяем, нет ли уже факта
+        # для этого сотрудника и этой даты.
+        existing_fact = (
+            self._timesheet_fact_repository
+            .get_by_employee_and_date(
+                employee_id=employee_id,
+                work_date=work_date,
             )
         )
 
-        for fact in existing_facts:
-            if fact.work_date == work_date:
-                raise TimesheetFactAlreadyExistsError(
-                    employee_id=employee_id,
-                    work_date=work_date,
-                )
+        if existing_fact is not None:
+            raise TimesheetFactAlreadyExistsError(
+                employee_id=employee_id,
+                work_date=work_date,
+            )
 
+        # Создаём факт.
         timesheet_fact = TimesheetFact(
             employee_id=employee_id,
             work_date=work_date,
@@ -127,12 +152,20 @@ class TimesheetFactService:
             timesheet_fact
         )
 
+    # ========================================================
+    # GET BY ID
+    # ========================================================
+
     def get_by_id(
         self,
         timesheet_fact_id: int,
     ) -> TimesheetFact:
-        timesheet_fact = self._timesheet_fact_repository.get_by_id(
-            timesheet_fact_id
+
+        timesheet_fact = (
+            self._timesheet_fact_repository
+            .get_by_id(
+                timesheet_fact_id
+            )
         )
 
         if timesheet_fact is None:
@@ -142,66 +175,91 @@ class TimesheetFactService:
 
         return timesheet_fact
 
+    # ========================================================
+    # GET ALL
+    # ========================================================
+
     def get_all(self) -> list[TimesheetFact]:
+
         return self._timesheet_fact_repository.get_all()
+
+    # ========================================================
+    # GET BY EMPLOYEE
+    # ========================================================
 
     def get_by_employee_id(
         self,
         employee_id: int,
     ) -> list[TimesheetFact]:
+
         return self._timesheet_fact_repository.get_by_employee_id(
             employee_id
         )
+
+    # ========================================================
+    # UPDATE
+    # ========================================================
 
     def update(
         self,
         timesheet_fact_id: int,
         actual_hours: float,
     ) -> TimesheetFact:
+
+        # Получаем существующий факт.
         timesheet_fact = self.get_by_id(
             timesheet_fact_id
         )
 
-        # Нельзя менять факт на будущую дату.
+        # Нельзя изменять факт за будущую дату.
         if timesheet_fact.work_date > date.today():
             raise TimesheetFactFutureDateError(
                 "Cannot update actual hours for a future date"
             )
 
-        # Находим план.
-        plans = self._timesheet_plan_repository.get_by_employee_id(
-            timesheet_fact.employee_id
+        # Получаем план сотрудника
+        # на дату факта.
+        plan = (
+            self._timesheet_plan_repository
+            .get_by_employee_and_date(
+                employee_id=timesheet_fact.employee_id,
+                work_date=timesheet_fact.work_date,
+            )
         )
 
-        planned_hours = None
-
-        for plan in plans:
-            if plan.work_date == timesheet_fact.work_date:
-                planned_hours = plan.planned_hours
-                break
-
-        if planned_hours is None:
+        # План должен существовать.
+        if plan is None:
             raise TimesheetPlanNotFoundForFactError(
                 employee_id=timesheet_fact.employee_id,
                 work_date=timesheet_fact.work_date,
             )
 
-        # Проверяем соответствие факта плану.
-        if actual_hours != planned_hours:
+        # Бизнес-правило:
+        # 0 <= actual_hours <= planned_hours
+        if (
+            actual_hours < 0
+            or actual_hours > plan.planned_hours
+        ):
             raise TimesheetFactHoursMismatchError(
-                planned_hours
+                plan.planned_hours
             )
 
+        # Обновляем фактические часы.
         timesheet_fact.actual_hours = actual_hours
 
         return self._timesheet_fact_repository.update(
             timesheet_fact
         )
 
+    # ========================================================
+    # DELETE
+    # ========================================================
+
     def delete(
         self,
         timesheet_fact_id: int,
     ) -> None:
+
         timesheet_fact = self.get_by_id(
             timesheet_fact_id
         )

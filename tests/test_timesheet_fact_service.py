@@ -8,11 +8,11 @@ from app.services.timesheet_fact import (
     TimesheetFactFutureDateError,
     TimesheetFactHoursMismatchError,
     TimesheetFactService,
+    TimesheetPlanNotFoundForFactError,
 )
 
 
 def test_create_fact_for_future_date_is_forbidden():
-    # Создаём фиктивные зависимости.
     fact_repository = Mock()
     plan_repository = Mock()
 
@@ -21,11 +21,8 @@ def test_create_fact_for_future_date_is_forbidden():
         timesheet_plan_repository=plan_repository,
     )
 
-    # Берём дату завтра.
     future_date = date.today() + timedelta(days=1)
 
-    # Попытка создать факт за будущую дату
-    # должна вызвать ошибку.
     with pytest.raises(TimesheetFactFutureDateError):
         service.create(
             employee_id=1,
@@ -33,51 +30,16 @@ def test_create_fact_for_future_date_is_forbidden():
             actual_hours=8,
         )
 
-    # До репозитория дело доходить не должно.
-    plan_repository.get_by_employee_id.assert_not_called()
+    plan_repository.get_by_employee_and_date.assert_not_called()
     fact_repository.create.assert_not_called()
 
 
-def test_create_fact_when_hours_do_not_match_plan_is_forbidden():
-    # Создаём фиктивные зависимости.
-    fact_repository = Mock()
-    plan_repository = Mock()
-
-    # План сотрудника.
-    plan = Mock(
-        id=1,
-        employee_id=1,
-        work_date=date.today(),
-        planned_hours=8,
-    )
-
-    plan_repository.get_by_employee_id.return_value = [plan]
-
-    service = TimesheetFactService(
-        timesheet_fact_repository=fact_repository,
-        timesheet_plan_repository=plan_repository,
-    )
-
-    # В плане 8 часов, а пытаемся внести 7.
-    with pytest.raises(TimesheetFactHoursMismatchError):
-        service.create(
-            employee_id=1,
-            work_date=date.today(),
-            actual_hours=7,
-        )
-
-    # Факт не должен создаваться.
-    fact_repository.create.assert_not_called()
-
-
-def test_create_duplicate_fact_for_same_date_is_forbidden():
-    # Создаём фиктивные зависимости.
+def test_create_fact_when_actual_hours_less_than_plan_is_allowed():
     fact_repository = Mock()
     plan_repository = Mock()
 
     work_date = date.today()
 
-    # План на эту дату.
     plan = Mock(
         id=1,
         employee_id=1,
@@ -85,9 +47,93 @@ def test_create_duplicate_fact_for_same_date_is_forbidden():
         planned_hours=8,
     )
 
-    plan_repository.get_by_employee_id.return_value = [plan]
+    plan_repository.get_by_employee_and_date.return_value = plan
+    fact_repository.get_by_employee_and_date.return_value = None
 
-    # Факт на эту дату уже существует.
+    def create_fact(fact):
+        fact.id = 20
+        return fact
+
+    fact_repository.create.side_effect = create_fact
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    result = service.create(
+        employee_id=1,
+        work_date=work_date,
+        actual_hours=7,
+    )
+
+    assert result.id == 20
+    assert result.employee_id == 1
+    assert result.work_date == work_date
+    assert result.actual_hours == 7
+
+    plan_repository.get_by_employee_and_date.assert_called_once_with(
+        employee_id=1,
+        work_date=work_date,
+    )
+
+    fact_repository.get_by_employee_and_date.assert_called_once_with(
+        employee_id=1,
+        work_date=work_date,
+    )
+
+    fact_repository.create.assert_called_once()
+
+
+def test_create_fact_when_actual_hours_exceed_plan_is_forbidden():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
+    plan = Mock(
+        id=1,
+        employee_id=1,
+        work_date=work_date,
+        planned_hours=8,
+    )
+
+    plan_repository.get_by_employee_and_date.return_value = plan
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    with pytest.raises(
+        TimesheetFactHoursMismatchError,
+        match="Actual hours cannot exceed planned hours: 8",
+    ):
+        service.create(
+            employee_id=1,
+            work_date=work_date,
+            actual_hours=9,
+        )
+
+    fact_repository.get_by_employee_and_date.assert_not_called()
+    fact_repository.create.assert_not_called()
+
+
+def test_create_duplicate_fact_for_same_date_is_forbidden():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
+    plan = Mock(
+        id=1,
+        employee_id=1,
+        work_date=work_date,
+        planned_hours=8,
+    )
+
+    plan_repository.get_by_employee_and_date.return_value = plan
+
     existing_fact = Mock(
         id=10,
         employee_id=1,
@@ -95,16 +141,15 @@ def test_create_duplicate_fact_for_same_date_is_forbidden():
         actual_hours=8,
     )
 
-    fact_repository.get_by_employee_id.return_value = [
+    fact_repository.get_by_employee_and_date.return_value = (
         existing_fact
-    ]
+    )
 
     service = TimesheetFactService(
         timesheet_fact_repository=fact_repository,
         timesheet_plan_repository=plan_repository,
     )
 
-    # Повторное создание факта должно вызвать ошибку.
     with pytest.raises(TimesheetFactAlreadyExistsError):
         service.create(
             employee_id=1,
@@ -112,18 +157,42 @@ def test_create_duplicate_fact_for_same_date_is_forbidden():
             actual_hours=8,
         )
 
-    # Новый факт не должен создаваться.
     fact_repository.create.assert_not_called()
 
 
-def test_create_fact_successfully():
-    # Создаём фиктивные зависимости.
+def test_create_fact_without_plan_is_forbidden():
     fact_repository = Mock()
     plan_repository = Mock()
 
     work_date = date.today()
 
-    # План сотрудника.
+    plan_repository.get_by_employee_and_date.return_value = None
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    with pytest.raises(
+        TimesheetPlanNotFoundForFactError,
+        match="Timesheet plan for employee 1",
+    ):
+        service.create(
+            employee_id=1,
+            work_date=work_date,
+            actual_hours=8,
+        )
+
+    fact_repository.get_by_employee_and_date.assert_not_called()
+    fact_repository.create.assert_not_called()
+
+
+def test_create_fact_successfully():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
     plan = Mock(
         id=1,
         employee_id=1,
@@ -131,12 +200,9 @@ def test_create_fact_successfully():
         planned_hours=8,
     )
 
-    plan_repository.get_by_employee_id.return_value = [plan]
+    plan_repository.get_by_employee_and_date.return_value = plan
+    fact_repository.get_by_employee_and_date.return_value = None
 
-    # Фактов на эту дату ещё нет.
-    fact_repository.get_by_employee_id.return_value = []
-
-    # Имитируем создание факта в репозитории.
     def create_fact(fact):
         fact.id = 20
         return fact
@@ -154,24 +220,178 @@ def test_create_fact_successfully():
         actual_hours=8,
     )
 
-    # Проверяем созданный факт.
     assert result.id == 20
     assert result.employee_id == 1
     assert result.work_date == work_date
     assert result.actual_hours == 8
 
-    # Проверяем, что репозиторий действительно вызвали.
     fact_repository.create.assert_called_once()
 
 
+def test_update_fact_successfully():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
+    fact = Mock(
+        id=10,
+        employee_id=1,
+        work_date=work_date,
+        actual_hours=8,
+    )
+
+    plan = Mock(
+        id=1,
+        employee_id=1,
+        work_date=work_date,
+        planned_hours=8,
+    )
+
+    fact_repository.get_by_id.return_value = fact
+    plan_repository.get_by_employee_and_date.return_value = plan
+    fact_repository.update.side_effect = lambda fact: fact
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    result = service.update(
+        timesheet_fact_id=10,
+        actual_hours=6,
+    )
+
+    assert result.actual_hours == 6
+
+    plan_repository.get_by_employee_and_date.assert_called_once_with(
+        employee_id=1,
+        work_date=work_date,
+    )
+
+    fact_repository.update.assert_called_once_with(fact)
+
+
+def test_update_fact_when_actual_hours_less_than_plan_is_allowed():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
+    fact = Mock(
+        id=10,
+        employee_id=1,
+        work_date=work_date,
+        actual_hours=8,
+    )
+
+    plan = Mock(
+        id=1,
+        employee_id=1,
+        work_date=work_date,
+        planned_hours=8,
+    )
+
+    fact_repository.get_by_id.return_value = fact
+    plan_repository.get_by_employee_and_date.return_value = plan
+
+    # Repository update returns the modified object.
+    fact_repository.update.side_effect = lambda fact: fact
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    result = service.update(
+        timesheet_fact_id=10,
+        actual_hours=3,
+    )
+
+    assert result.actual_hours == 3
+
+    fact_repository.update.assert_called_once_with(fact)
+
+
+def test_update_fact_when_actual_hours_exceed_plan_is_forbidden():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
+    fact = Mock(
+        id=10,
+        employee_id=1,
+        work_date=work_date,
+        actual_hours=8,
+    )
+
+    plan = Mock(
+        id=1,
+        employee_id=1,
+        work_date=work_date,
+        planned_hours=8,
+    )
+
+    fact_repository.get_by_id.return_value = fact
+    plan_repository.get_by_employee_and_date.return_value = plan
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    with pytest.raises(
+        TimesheetFactHoursMismatchError,
+        match="Actual hours cannot exceed planned hours: 8",
+    ):
+        service.update(
+            timesheet_fact_id=10,
+            actual_hours=9,
+        )
+
+    fact_repository.update.assert_not_called()
+
+
+def test_update_fact_without_plan_is_forbidden():
+    fact_repository = Mock()
+    plan_repository = Mock()
+
+    work_date = date.today()
+
+    fact = Mock(
+        id=10,
+        employee_id=1,
+        work_date=work_date,
+        actual_hours=8,
+    )
+
+    fact_repository.get_by_id.return_value = fact
+    plan_repository.get_by_employee_and_date.return_value = None
+
+    service = TimesheetFactService(
+        timesheet_fact_repository=fact_repository,
+        timesheet_plan_repository=plan_repository,
+    )
+
+    with pytest.raises(
+        TimesheetPlanNotFoundForFactError,
+        match="Timesheet plan for employee 1",
+    ):
+        service.update(
+            timesheet_fact_id=10,
+            actual_hours=6,
+        )
+
+    fact_repository.update.assert_not_called()
+
+
 def test_update_fact_for_future_date_is_forbidden():
-    # Создаём фиктивные зависимости.
     fact_repository = Mock()
     plan_repository = Mock()
 
     future_date = date.today() + timedelta(days=1)
 
-    # Существующий факт с будущей датой.
     fact = Mock(
         id=10,
         employee_id=1,
@@ -186,15 +406,11 @@ def test_update_fact_for_future_date_is_forbidden():
         timesheet_plan_repository=plan_repository,
     )
 
-    # Изменение факта за будущую дату запрещено.
     with pytest.raises(TimesheetFactFutureDateError):
         service.update(
             timesheet_fact_id=10,
             actual_hours=8,
         )
 
-    # План искать не должны.
-    plan_repository.get_by_employee_id.assert_not_called()
-
-    # Факт обновлять не должны.
+    plan_repository.get_by_employee_and_date.assert_not_called()
     fact_repository.update.assert_not_called()
