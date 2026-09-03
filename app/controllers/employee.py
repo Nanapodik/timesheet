@@ -1,13 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.dependencies import get_employee_service
+from app.dependencies import (
+    get_current_user,
+    get_employee_service,
+)
+
+from app.models.user import User
+
 from app.schemas.employee import (
     EmployeeCreate,
     EmployeeResponse,
     EmployeeUpdate,
 )
-from app.services.employee import EmployeeNotFoundError, EmployeeService
-from app.services.organization import OrganizationNotFoundError
+
+from app.services.employee import (
+    EmployeeNotFoundError,
+    EmployeeService,
+)
+
+from app.services.organization import (
+    OrganizationNotFoundError,
+)
 
 
 router = APIRouter(
@@ -24,6 +37,7 @@ router = APIRouter(
 def create_employee(
     data: EmployeeCreate,
     service: EmployeeService = Depends(get_employee_service),
+    current_user: User = Depends(get_current_user),
 ) -> EmployeeResponse:
     try:
         employee = service.create(
@@ -49,9 +63,14 @@ def create_employee(
 )
 def get_employees(
     service: EmployeeService = Depends(get_employee_service),
+    current_user: User = Depends(get_current_user),
 ) -> list[EmployeeResponse]:
     employees = service.get_all()
-    return [EmployeeResponse.model_validate(employee) for employee in employees]
+
+    return [
+        EmployeeResponse.model_validate(employee)
+        for employee in employees
+    ]
 
 
 @router.get(
@@ -61,6 +80,7 @@ def get_employees(
 def get_employee(
     employee_id: int,
     service: EmployeeService = Depends(get_employee_service),
+    current_user: User = Depends(get_current_user),
 ) -> EmployeeResponse:
     employee = service.get_by_id(employee_id)
 
@@ -81,6 +101,7 @@ def update_employee(
     employee_id: int,
     data: EmployeeUpdate,
     service: EmployeeService = Depends(get_employee_service),
+    current_user: User = Depends(get_current_user),
 ) -> EmployeeResponse:
     try:
         employee = service.update(
@@ -113,6 +134,7 @@ def update_employee(
 def delete_employee(
     employee_id: int,
     service: EmployeeService = Depends(get_employee_service),
+    current_user: User = Depends(get_current_user),
 ) -> Response:
     try:
         service.delete(employee_id)
@@ -122,4 +144,6 @@ def delete_employee(
             detail=str(error),
         ) from error
 
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT,
+    )

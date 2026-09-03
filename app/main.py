@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
+
 from fastapi.responses import JSONResponse
 
+from app.controllers.auth import router as auth_router
 from app.controllers.employee import router as employee_router
 from app.controllers.organization import router as organization_router
 from app.controllers.timesheet import router as timesheet_router
@@ -20,6 +22,7 @@ from app.services.timesheet import (
 app = FastAPI()
 
 
+app.include_router(auth_router)
 app.include_router(organization_router)
 app.include_router(employee_router)
 app.include_router(timesheet_router)

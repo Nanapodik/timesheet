@@ -1,11 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.dependencies import get_timesheet_fact_service
+from app.dependencies import (
+    get_current_user,
+    get_timesheet_fact_service,
+)
+
+from app.models.user import User
+
 from app.schemas.timesheet_fact import (
     TimesheetFactCreate,
     TimesheetFactResponse,
     TimesheetFactUpdate,
 )
+
 from app.services.timesheet_fact import (
     TimesheetFactAlreadyExistsError,
     TimesheetFactFutureDateError,
@@ -22,6 +29,10 @@ router = APIRouter(
 )
 
 
+# ============================================================
+# CREATE
+# ============================================================
+
 @router.post(
     "",
     response_model=TimesheetFactResponse,
@@ -31,6 +42,9 @@ def create_timesheet_fact(
     data: TimesheetFactCreate,
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ):
     try:
@@ -65,6 +79,10 @@ def create_timesheet_fact(
         ) from exc
 
 
+# ============================================================
+# GET ALL
+# ============================================================
+
 @router.get(
     "",
     response_model=list[TimesheetFactResponse],
@@ -73,9 +91,16 @@ def get_timesheet_facts(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ):
     return service.get_all()
 
+
+# ============================================================
+# GET BY EMPLOYEE
+# ============================================================
 
 @router.get(
     "/employee/{employee_id}",
@@ -86,9 +111,16 @@ def get_employee_timesheet_facts(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ):
     return service.get_by_employee_id(employee_id)
 
+
+# ============================================================
+# GET BY ID
+# ============================================================
 
 @router.get(
     "/{timesheet_fact_id}",
@@ -98,6 +130,9 @@ def get_timesheet_fact(
     timesheet_fact_id: int,
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ):
     try:
@@ -110,6 +145,10 @@ def get_timesheet_fact(
         ) from exc
 
 
+# ============================================================
+# UPDATE
+# ============================================================
+
 @router.put(
     "/{timesheet_fact_id}",
     response_model=TimesheetFactResponse,
@@ -119,6 +158,9 @@ def update_timesheet_fact(
     data: TimesheetFactUpdate,
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ):
     try:
@@ -152,6 +194,10 @@ def update_timesheet_fact(
         ) from exc
 
 
+# ============================================================
+# DELETE
+# ============================================================
+
 @router.delete(
     "/{timesheet_fact_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -160,6 +206,9 @@ def delete_timesheet_fact(
     timesheet_fact_id: int,
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ):
     try:

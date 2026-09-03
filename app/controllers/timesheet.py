@@ -1,12 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
-from app.dependencies import get_timesheet_service
+from app.dependencies import (
+    get_current_user,
+    get_timesheet_service,
+)
+
+from app.models.user import User
+
 from app.schemas.timesheet import (
     TimesheetPlanCreate,
     TimesheetPlanResponse,
     TimesheetPlanUpdate,
 )
+
 from app.services.employee import EmployeeNotFoundError
+
 from app.services.timesheet import (
     TimesheetMonthAlreadyFixedError,
     TimesheetPlanAlreadyExistsError,
@@ -35,6 +43,9 @@ def create_timesheet_plan(
     data: TimesheetPlanCreate,
     service: TimesheetPlanService = Depends(
         get_timesheet_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ) -> TimesheetPlanResponse:
 
@@ -80,6 +91,9 @@ def get_timesheet_plans(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ) -> list[TimesheetPlanResponse]:
 
     timesheet_plans = service.get_all()
@@ -104,6 +118,9 @@ def get_timesheet_plan(
     timesheet_plan_id: int,
     service: TimesheetPlanService = Depends(
         get_timesheet_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ) -> TimesheetPlanResponse:
 
@@ -135,6 +152,9 @@ def get_employee_timesheet_plans(
     employee_id: int,
     service: TimesheetPlanService = Depends(
         get_timesheet_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ) -> list[TimesheetPlanResponse]:
 
@@ -171,6 +191,9 @@ def fix_timesheet_month(
     month: int,
     service: TimesheetPlanService = Depends(
         get_timesheet_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ) -> list[TimesheetPlanResponse]:
 
@@ -221,6 +244,9 @@ def update_timesheet_plan(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
+    current_user: User = Depends(
+        get_current_user
+    ),
 ) -> TimesheetPlanResponse:
 
     try:
@@ -265,6 +291,9 @@ def delete_timesheet_plan(
     timesheet_plan_id: int,
     service: TimesheetPlanService = Depends(
         get_timesheet_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ) -> Response:
 

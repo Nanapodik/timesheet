@@ -1,7 +1,14 @@
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_timesheet_report_service
+from app.dependencies import (
+    get_current_user,
+    get_timesheet_report_service,
+)
+
+from app.models.user import User
+
 from app.schemas.timesheet_report import TimesheetReportResponse
+
 from app.services.timesheet_report import TimesheetReportService
 
 
@@ -10,6 +17,10 @@ router = APIRouter(
     tags=["Timesheet Reports"],
 )
 
+
+# ============================================================
+# GET MONTH REPORT
+# ============================================================
 
 @router.get(
     "/employee/{employee_id}/month/{year}/{month}",
@@ -21,6 +32,9 @@ def get_month_timesheet_report(
     month: int,
     service: TimesheetReportService = Depends(
         get_timesheet_report_service
+    ),
+    current_user: User = Depends(
+        get_current_user
     ),
 ) -> TimesheetReportResponse:
 
