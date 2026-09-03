@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.dependencies import (
-    get_current_user,
+    get_current_admin,
     get_timesheet_service,
 )
 
@@ -44,8 +44,8 @@ def create_timesheet_plan(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> TimesheetPlanResponse:
 
@@ -91,8 +91,8 @@ def get_timesheet_plans(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> list[TimesheetPlanResponse]:
 
@@ -119,8 +119,8 @@ def get_timesheet_plan(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> TimesheetPlanResponse:
 
@@ -153,8 +153,8 @@ def get_employee_timesheet_plans(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> list[TimesheetPlanResponse]:
 
@@ -192,8 +192,8 @@ def fix_timesheet_month(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> list[TimesheetPlanResponse]:
 
@@ -244,8 +244,8 @@ def update_timesheet_plan(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> TimesheetPlanResponse:
 
@@ -292,8 +292,8 @@ def delete_timesheet_plan(
     service: TimesheetPlanService = Depends(
         get_timesheet_service
     ),
-    current_user: User = Depends(
-        get_current_user
+    current_admin: User = Depends(
+        get_current_admin
     ),
 ) -> Response:
 

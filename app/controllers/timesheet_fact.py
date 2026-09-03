@@ -1,18 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.dependencies import (
-    get_current_user,
+    get_current_admin,
     get_timesheet_fact_service,
 )
-
 from app.models.user import User
-
 from app.schemas.timesheet_fact import (
     TimesheetFactCreate,
     TimesheetFactResponse,
     TimesheetFactUpdate,
 )
-
 from app.services.timesheet_fact import (
     TimesheetFactAlreadyExistsError,
     TimesheetFactFutureDateError,
@@ -29,10 +26,6 @@ router = APIRouter(
 )
 
 
-# ============================================================
-# CREATE
-# ============================================================
-
 @router.post(
     "",
     response_model=TimesheetFactResponse,
@@ -43,45 +36,41 @@ def create_timesheet_fact(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
-    current_user: User = Depends(
-        get_current_user
-    ),
-):
+    current_user: User = Depends(get_current_admin),
+) -> TimesheetFactResponse:
     try:
-        return service.create(
+        fact = service.create(
             employee_id=data.employee_id,
             work_date=data.work_date,
             actual_hours=data.actual_hours,
         )
 
-    except TimesheetFactAlreadyExistsError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
-
-    except TimesheetFactFutureDateError as exc:
+    except TimesheetFactFutureDateError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error
 
-    except TimesheetFactHoursMismatchError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    except TimesheetPlanNotFoundForFactError as exc:
+    except TimesheetPlanNotFoundForFactError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error
 
+    except TimesheetFactHoursMismatchError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
 
-# ============================================================
-# GET ALL
-# ============================================================
+    except TimesheetFactAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+
+    return TimesheetFactResponse.model_validate(fact)
+
 
 @router.get(
     "",
@@ -91,36 +80,15 @@ def get_timesheet_facts(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
-    current_user: User = Depends(
-        get_current_user
-    ),
-):
-    return service.get_all()
+    current_user: User = Depends(get_current_admin),
+) -> list[TimesheetFactResponse]:
+    facts = service.get_all()
 
+    return [
+        TimesheetFactResponse.model_validate(fact)
+        for fact in facts
+    ]
 
-# ============================================================
-# GET BY EMPLOYEE
-# ============================================================
-
-@router.get(
-    "/employee/{employee_id}",
-    response_model=list[TimesheetFactResponse],
-)
-def get_employee_timesheet_facts(
-    employee_id: int,
-    service: TimesheetFactService = Depends(
-        get_timesheet_fact_service
-    ),
-    current_user: User = Depends(
-        get_current_user
-    ),
-):
-    return service.get_by_employee_id(employee_id)
-
-
-# ============================================================
-# GET BY ID
-# ============================================================
 
 @router.get(
     "/{timesheet_fact_id}",
@@ -131,23 +99,38 @@ def get_timesheet_fact(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
-    current_user: User = Depends(
-        get_current_user
-    ),
-):
+    current_user: User = Depends(get_current_admin),
+) -> TimesheetFactResponse:
     try:
-        return service.get_by_id(timesheet_fact_id)
+        fact = service.get_by_id(timesheet_fact_id)
 
-    except TimesheetFactNotFoundError as exc:
+    except TimesheetFactNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error
+
+    return TimesheetFactResponse.model_validate(fact)
 
 
-# ============================================================
-# UPDATE
-# ============================================================
+@router.get(
+    "/employee/{employee_id}",
+    response_model=list[TimesheetFactResponse],
+)
+def get_timesheet_facts_by_employee(
+    employee_id: int,
+    service: TimesheetFactService = Depends(
+        get_timesheet_fact_service
+    ),
+    current_user: User = Depends(get_current_admin),
+) -> list[TimesheetFactResponse]:
+    facts = service.get_by_employee_id(employee_id)
+
+    return [
+        TimesheetFactResponse.model_validate(fact)
+        for fact in facts
+    ]
+
 
 @router.put(
     "/{timesheet_fact_id}",
@@ -159,44 +142,40 @@ def update_timesheet_fact(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
-    current_user: User = Depends(
-        get_current_user
-    ),
-):
+    current_user: User = Depends(get_current_admin),
+) -> TimesheetFactResponse:
     try:
-        return service.update(
+        fact = service.update(
             timesheet_fact_id=timesheet_fact_id,
             actual_hours=data.actual_hours,
         )
 
-    except TimesheetFactNotFoundError as exc:
+    except TimesheetFactNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error
 
-    except TimesheetFactFutureDateError as exc:
+    except TimesheetFactFutureDateError as error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error
 
-    except TimesheetFactHoursMismatchError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
-
-    except TimesheetPlanNotFoundForFactError as exc:
+    except TimesheetPlanNotFoundForFactError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error
 
+    except TimesheetFactHoursMismatchError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
 
-# ============================================================
-# DELETE
-# ============================================================
+    return TimesheetFactResponse.model_validate(fact)
+
 
 @router.delete(
     "/{timesheet_fact_id}",
@@ -207,15 +186,13 @@ def delete_timesheet_fact(
     service: TimesheetFactService = Depends(
         get_timesheet_fact_service
     ),
-    current_user: User = Depends(
-        get_current_user
-    ),
-):
+    current_user: User = Depends(get_current_admin),
+) -> None:
     try:
         service.delete(timesheet_fact_id)
 
-    except TimesheetFactNotFoundError as exc:
+    except TimesheetFactNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+            detail=str(error),
+        ) from error

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.dependencies import (
-    get_current_user,
+    get_current_admin,
     get_employee_service,
 )
 
@@ -37,7 +37,7 @@ router = APIRouter(
 def create_employee(
     data: EmployeeCreate,
     service: EmployeeService = Depends(get_employee_service),
-    current_user: User = Depends(get_current_user),
+    current_admin: User = Depends(get_current_admin),
 ) -> EmployeeResponse:
     try:
         employee = service.create(
@@ -63,7 +63,7 @@ def create_employee(
 )
 def get_employees(
     service: EmployeeService = Depends(get_employee_service),
-    current_user: User = Depends(get_current_user),
+    current_admin: User = Depends(get_current_admin),
 ) -> list[EmployeeResponse]:
     employees = service.get_all()
 
@@ -80,7 +80,7 @@ def get_employees(
 def get_employee(
     employee_id: int,
     service: EmployeeService = Depends(get_employee_service),
-    current_user: User = Depends(get_current_user),
+    current_admin: User = Depends(get_current_admin),
 ) -> EmployeeResponse:
     employee = service.get_by_id(employee_id)
 
@@ -101,7 +101,7 @@ def update_employee(
     employee_id: int,
     data: EmployeeUpdate,
     service: EmployeeService = Depends(get_employee_service),
-    current_user: User = Depends(get_current_user),
+    current_admin: User = Depends(get_current_admin),
 ) -> EmployeeResponse:
     try:
         employee = service.update(
@@ -134,7 +134,7 @@ def update_employee(
 def delete_employee(
     employee_id: int,
     service: EmployeeService = Depends(get_employee_service),
-    current_user: User = Depends(get_current_user),
+    current_admin: User = Depends(get_current_admin),
 ) -> Response:
     try:
         service.delete(employee_id)

@@ -6,7 +6,6 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.database.connection import SessionLocal
-
 from app.models.user import User
 
 from app.repositories.employee import EmployeeRepository
@@ -22,16 +21,17 @@ from app.services.organization import OrganizationService
 from app.services.timesheet import TimesheetPlanService
 from app.services.timesheet_fact import TimesheetFactService
 from app.services.timesheet_report import TimesheetReportService
-from app.services.user import (
-    UserNotFoundError,
-    UserService,
-)
+from app.services.user import UserNotFoundError, UserService
 
 
 security = HTTPBearer(
-    auto_error=False,
+    auto_error=False
 )
 
+
+# ============================================================
+# ORGANIZATION SERVICE
+# ============================================================
 
 def get_organization_service() -> Generator[
     OrganizationService,
@@ -42,11 +42,15 @@ def get_organization_service() -> Generator[
 
     try:
         yield OrganizationService(
-            OrganizationRepository(session),
+            OrganizationRepository(session)
         )
     finally:
         session.close()
 
+
+# ============================================================
+# EMPLOYEE SERVICE
+# ============================================================
 
 def get_employee_service() -> Generator[
     EmployeeService,
@@ -57,7 +61,7 @@ def get_employee_service() -> Generator[
 
     try:
         organization_service = OrganizationService(
-            OrganizationRepository(session),
+            OrganizationRepository(session)
         )
 
         yield EmployeeService(
@@ -67,6 +71,10 @@ def get_employee_service() -> Generator[
     finally:
         session.close()
 
+
+# ============================================================
+# TIMESHEET PLAN SERVICE
+# ============================================================
 
 def get_timesheet_service() -> Generator[
     TimesheetPlanService,
@@ -79,7 +87,7 @@ def get_timesheet_service() -> Generator[
         employee_service = EmployeeService(
             EmployeeRepository(session),
             OrganizationService(
-                OrganizationRepository(session),
+                OrganizationRepository(session)
             ),
         )
 
@@ -90,6 +98,10 @@ def get_timesheet_service() -> Generator[
     finally:
         session.close()
 
+
+# ============================================================
+# TIMESHEET FACT SERVICE
+# ============================================================
 
 def get_timesheet_fact_service() -> Generator[
     TimesheetFactService,
@@ -107,6 +119,10 @@ def get_timesheet_fact_service() -> Generator[
         session.close()
 
 
+# ============================================================
+# TIMESHEET REPORT SERVICE
+# ============================================================
+
 def get_timesheet_report_service() -> Generator[
     TimesheetReportService,
     None,
@@ -118,11 +134,14 @@ def get_timesheet_report_service() -> Generator[
         yield TimesheetReportService(
             TimesheetPlanRepository(session),
             TimesheetFactRepository(session),
-            EmployeeRepository(session),
         )
     finally:
         session.close()
 
+
+# ============================================================
+# USER SERVICE
+# ============================================================
 
 def get_user_service() -> Generator[
     UserService,
@@ -133,16 +152,25 @@ def get_user_service() -> Generator[
 
     try:
         yield UserService(
-            UserRepository(session),
+            UserRepository(session)
         )
     finally:
         session.close()
 
 
+# ============================================================
+# CURRENT USER
+# ============================================================
+
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    service: UserService = Depends(get_user_service),
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        security
+    ),
+    service: UserService = Depends(
+        get_user_service
+    ),
 ) -> User:
+
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -157,20 +185,24 @@ def get_current_user(
 
     try:
         user_id = decode_access_token(
-            credentials.credentials,
+            credentials.credentials
         )
     except (
         jwt.InvalidTokenError,
         ValueError,
     ) as error:
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         ) from error
 
     try:
-        user = service.get_by_id(user_id)
+        user = service.get_by_id(
+            user_id
+        )
     except UserNotFoundError as error:
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -183,3 +215,22 @@ def get_current_user(
         )
 
     return user
+
+
+# ============================================================
+# CURRENT ADMIN
+# ============================================================
+
+def get_current_admin(
+    current_user: User = Depends(
+        get_current_user
+    ),
+) -> User:
+
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+    return current_user

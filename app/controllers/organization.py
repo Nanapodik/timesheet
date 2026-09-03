@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 
 from app.dependencies import (
-    get_current_user,
+    get_current_admin,
     get_organization_service,
 )
 
@@ -32,8 +32,12 @@ router = APIRouter(
 )
 def create_organization(
     payload: OrganizationCreate,
-    service: OrganizationService = Depends(get_organization_service),
-    current_user: User = Depends(get_current_user),
+    service: OrganizationService = Depends(
+        get_organization_service,
+    ),
+    current_admin: User = Depends(
+        get_current_admin,
+    ),
 ) -> OrganizationResponse:
     organization = service.create(
         **payload.model_dump(),
@@ -49,8 +53,12 @@ def create_organization(
     response_model=list[OrganizationResponse],
 )
 def get_organizations(
-    service: OrganizationService = Depends(get_organization_service),
-    current_user: User = Depends(get_current_user),
+    service: OrganizationService = Depends(
+        get_organization_service,
+    ),
+    current_admin: User = Depends(
+        get_current_admin,
+    ),
 ) -> list[OrganizationResponse]:
     organizations = service.get_all()
 
@@ -66,8 +74,12 @@ def get_organizations(
 )
 def get_organization(
     organization_id: int,
-    service: OrganizationService = Depends(get_organization_service),
-    current_user: User = Depends(get_current_user),
+    service: OrganizationService = Depends(
+        get_organization_service,
+    ),
+    current_admin: User = Depends(
+        get_current_admin,
+    ),
 ) -> OrganizationResponse:
     organization = service.get_by_id(
         organization_id,
@@ -90,12 +102,18 @@ def get_organization(
 def update_organization(
     organization_id: int,
     payload: OrganizationUpdate,
-    service: OrganizationService = Depends(get_organization_service),
-    current_user: User = Depends(get_current_user),
+    service: OrganizationService = Depends(
+        get_organization_service,
+    ),
+    current_admin: User = Depends(
+        get_current_admin,
+    ),
 ) -> OrganizationResponse:
     organization = service.update(
         organization_id,
-        **payload.model_dump(exclude_unset=True),
+        **payload.model_dump(
+            exclude_unset=True,
+        ),
     )
 
     return OrganizationResponse.model_validate(
@@ -109,8 +127,12 @@ def update_organization(
 )
 def delete_organization(
     organization_id: int,
-    service: OrganizationService = Depends(get_organization_service),
-    current_user: User = Depends(get_current_user),
+    service: OrganizationService = Depends(
+        get_organization_service,
+    ),
+    current_admin: User = Depends(
+        get_current_admin,
+    ),
 ) -> None:
     service.delete(
         organization_id,

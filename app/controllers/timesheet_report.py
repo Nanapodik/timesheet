@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.dependencies import (
-    get_current_user,
+    get_current_admin,
     get_timesheet_report_service,
 )
 
@@ -34,7 +34,7 @@ def get_month_timesheet_report(
         get_timesheet_report_service
     ),
     current_user: User = Depends(
-        get_current_user
+        get_current_admin
     ),
 ) -> TimesheetReportResponse:
 
