@@ -94,27 +94,27 @@ REST API для учета рабочего времени сотруднико�
 
 Client
 
-&#x20;  ↓
+  ↓
 
 FastAPI
 
-&#x20;  ↓
+  ↓
 
 Controller
 
-&#x20;  ↓
+  ↓
 
 Service
 
-&#x20;  ↓
+  ↓
 
 Repository
 
-&#x20;  ↓
+  ↓
 
 SQLAlchemy
 
-&#x20;  ↓
+  ↓
 
 PostgreSQL
 
